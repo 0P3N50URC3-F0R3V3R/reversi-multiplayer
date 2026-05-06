@@ -109,8 +109,8 @@ function cleanup_stale_games(): void {
         $playerCount  = count($g['players'] ?? []);
 
         $age = $now - $mtime;
-        if ($finished && $age > 60) {
-            @unlink($file);                          // finished → delete after 60s
+        if ($finished && $age > 300) {
+            @unlink($file);                          // finished → delete after 5 min
         } elseif ($playerCount < 2 && $age > 1800) {
             @unlink($file);                          // waiting, nobody joined → 30 min
         } elseif ($playerCount >= 2 && !$finished && $age > 7200) {
