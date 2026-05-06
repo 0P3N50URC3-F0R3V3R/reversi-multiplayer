@@ -12,6 +12,15 @@ function initBoard() {
     return $b;
 }
 
+const PIECE_COLORS = [
+    '#111111' => 'Fekete',   '#eeeeee' => 'Fehér',
+    '#cc2222' => 'Piros',    '#2255cc' => 'Kék',
+    '#ddcc00' => 'Sárga',    '#22aa44' => 'Zöld',
+    '#8833cc' => 'Lila',     '#dd7722' => 'Narancs',
+    '#22aacc' => 'Türkiz',   '#cc4488' => 'Rózsaszín',
+    '#884422' => 'Barna',    '#888888' => 'Szürke',
+];
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $token = $_POST['csrf'] ?? '';
     if (!hash_equals(csrf_token(), $token)) {
@@ -52,18 +61,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         if (!in_array($timerVal, [0, 30, 60, 120])) $timerVal = 0;
                     }
 
+                    /* Colors */
+                    $colorKeys = array_keys(PIECE_COLORS);
+                    $c0 = in_array($_POST['color0'] ?? '', $colorKeys) ? $_POST['color0'] : '#111111';
+                    $c1 = in_array($_POST['color1'] ?? '', $colorKeys) ? $_POST['color1'] : '#eeeeee';
+                    if ($c0 === $c1) $c1 = ($c0 === '#111111') ? '#eeeeee' : '#111111';
+
+                    /* Room name */
+                    $roomName = mb_substr(trim($_POST['room_name'] ?? ''), 0, 32);
+
+                    /* Spectators */
+                    $allowSpec = !isset($_POST['no_spectators']);
+
                     $players = $ai ? [$n, 'Gép'] : [$n];
                     $game = [
-                        'creator'       => $n,
-                        'players'       => $players,
-                        'turn'          => $ai ? 0 : -1,
-                        'board'         => initBoard(),
-                        'finished'      => false,
-                        'chat'          => [],
-                        'spectators'    => [],
-                        'timer'         => $timerVal,
-                        'turnStartedAt' => $ai ? time() : null,
-                        'ai'            => $ai,
+                        'creator'         => $n,
+                        'players'         => $players,
+                        'turn'            => $ai ? 0 : -1,
+                        'board'           => initBoard(),
+                        'finished'        => false,
+                        'chat'            => [],
+                        'spectators'      => [],
+                        'timer'           => $timerVal,
+                        'turnStartedAt'   => $ai ? time() : null,
+                        'ai'              => $ai,
+                        'piece_colors'    => [$c0, $c1],
+                        'allow_spectators'=> $allowSpec,
+                        'room_name'       => $roomName,
                     ];
                     $path = "games/$id.json";
                     $wfp  = fopen($path, 'x');
@@ -134,6 +158,8 @@ foreach ($files as $file) {
         'players'   => array_map(fn($p) => htmlspecialchars($p, ENT_QUOTES, 'UTF-8'), $g['players'] ?? []),
         'ai'        => !empty($g['ai']),
         'timer'     => (int)($g['timer'] ?? 0),
+        'room_name' => htmlspecialchars($g['room_name'] ?? '', ENT_QUOTES, 'UTF-8'),
+        'colors'    => $g['piece_colors'] ?? ['#111111','#eeeeee'],
     ];
     if (count($g['players']) < 2) {
         $openGames[] = $entry;
@@ -214,8 +240,13 @@ foreach ($files as $file) {
 
       <div class="collapsible <?= $error !== '' ? 'open' : '' ?>" id="adv-opts">
         <div class="form-group">
-          <label class="form-label">Egyéni szoba azonosító <span style="color:#556;font-style:italic">(opcionális)</span></label>
-          <input class="form-control" name="custom_id" placeholder="pl. baratok-szobaja" maxlength="64">
+          <label class="form-label">Szoba neve <span style="color:#556;font-style:italic">(opcionális megjelenítési név)</span></label>
+          <input class="form-control" name="room_name" placeholder="pl. Barátok szobája" maxlength="32">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Egyéni szoba azonosító <span style="color:#556;font-style:italic">(opcionális, URL-ben jelenik meg)</span></label>
+          <input class="form-control" name="custom_id" placeholder="pl. baratok123" maxlength="64"
+                 pattern="[a-zA-Z0-9_-]+" title="Csak betű, szám, - és _">
         </div>
         <div class="form-group">
           <label class="form-label">Körönkénti időkorlát</label>
@@ -230,6 +261,35 @@ foreach ($files as $file) {
         <div class="form-group" id="timer-custom-wrap" style="display:none">
           <label class="form-label">Egyéni időkorlát (másodperc, 5–600)</label>
           <input class="form-control" type="number" name="timer_custom" min="5" max="600" value="60">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Korongok színe</label>
+          <div style="display:flex;gap:16px;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span id="c0-dot" style="display:inline-block;width:22px;height:22px;border-radius:50%;background:#111111;border:2px solid #3a5a3a"></span>
+              <select class="form-select" name="color0" id="color0" style="width:auto" onchange="syncColors()">
+                <?php foreach (PIECE_COLORS as $hex => $name): ?>
+                <option value="<?= $hex ?>" <?= $hex === '#111111' ? 'selected' : '' ?>><?= $name ?></option>
+                <?php endforeach; ?>
+              </select>
+              <span style="color:#888;font-size:.8em">1. játékos</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span id="c1-dot" style="display:inline-block;width:22px;height:22px;border-radius:50%;background:#eeeeee;border:2px solid #3a5a3a"></span>
+              <select class="form-select" name="color1" id="color1" style="width:auto" onchange="syncColors()">
+                <?php foreach (PIECE_COLORS as $hex => $name): ?>
+                <option value="<?= $hex ?>" <?= $hex === '#eeeeee' ? 'selected' : '' ?>><?= $name ?></option>
+                <?php endforeach; ?>
+              </select>
+              <span style="color:#888;font-size:.8em">2. játékos</span>
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="checkbox" name="no_spectators" id="no_spectators" style="width:16px;height:16px;accent-color:#7ecf8e">
+            <span style="font-size:.88em;color:#ccc">Nézők tiltása ebben a szobában</span>
+          </label>
         </div>
       </div>
 
@@ -273,9 +333,18 @@ foreach ($files as $file) {
   <thead><tr><th>Azonosító</th><th>Létrehozta</th><th>Időkorlát</th><th></th></tr></thead>
   <tbody>
   <?php foreach ($openGames as $g): ?>
+  <?php
+    $c0 = htmlspecialchars($g['colors'][0] ?? '#111111', ENT_QUOTES, 'UTF-8');
+    $c1 = htmlspecialchars($g['colors'][1] ?? '#eeeeee', ENT_QUOTES, 'UTF-8');
+    $displayName = $g['room_name'] ?: '<code>'.htmlspecialchars($g['id'], ENT_QUOTES, 'UTF-8').'</code>';
+  ?>
   <tr>
-    <td><code><?= htmlspecialchars($g['id'], ENT_QUOTES, 'UTF-8') ?></code></td>
-    <td><?= $g['creator'] ?></td>
+    <td><?= $displayName ?></td>
+    <td>
+      <span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:<?= $c0 ?>;vertical-align:middle;margin-right:2px;border:1px solid #3a5a3a"></span>
+      <span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:<?= $c1 ?>;vertical-align:middle;margin-right:6px;border:1px solid #3a5a3a"></span>
+      <?= $g['creator'] ?>
+    </td>
     <td><?php if ($g['timer'] > 0): ?><span class="timer-pill"><?= $g['timer'] ?>mp</span><?php else: ?><span class="timer-pill off">—</span><?php endif; ?></td>
     <td class="actions-cell">
       <?php if ($myName !== '' && $myName !== $g['rawCreator']): ?>
@@ -308,10 +377,19 @@ foreach ($files as $file) {
   <thead><tr><th>Azonosító</th><th>Játékosok</th><th>Időkorlát</th><th></th></tr></thead>
   <tbody>
   <?php foreach ($activeGames as $g): ?>
-  <?php $isPlayer = in_array($myName, array_map(fn($p) => html_entity_decode($p), $g['players'])); ?>
+  <?php
+    $isPlayer = in_array($myName, array_map(fn($p) => html_entity_decode($p), $g['players']));
+    $ac0 = htmlspecialchars($g['colors'][0] ?? '#111111', ENT_QUOTES, 'UTF-8');
+    $ac1 = htmlspecialchars($g['colors'][1] ?? '#eeeeee', ENT_QUOTES, 'UTF-8');
+    $aDisplayName = $g['room_name'] ?: '<code>'.htmlspecialchars($g['id'], ENT_QUOTES, 'UTF-8').'</code>';
+  ?>
   <tr>
-    <td><code><?= htmlspecialchars($g['id'], ENT_QUOTES, 'UTF-8') ?></code></td>
-    <td><?= implode(' <span style="color:#556">vs</span> ', $g['players']) ?><?= $g['ai'] ? ' 🤖' : '' ?></td>
+    <td><?= $aDisplayName ?></td>
+    <td>
+      <span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:<?= $ac0 ?>;vertical-align:middle;margin-right:2px;border:1px solid #3a5a3a"></span>
+      <span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:<?= $ac1 ?>;vertical-align:middle;margin-right:6px;border:1px solid #3a5a3a"></span>
+      <?= implode(' <span style="color:#556">vs</span> ', $g['players']) ?><?= $g['ai'] ? ' 🤖' : '' ?>
+    </td>
     <td><?php if ($g['timer'] > 0): ?><span class="timer-pill"><?= $g['timer'] ?>mp</span><?php else: ?><span class="timer-pill off">—</span><?php endif; ?></td>
     <td class="actions-cell">
       <?php if ($isPlayer && $myName !== ''): ?>
@@ -342,9 +420,21 @@ document.getElementById('timer-select')?.addEventListener('change', function () 
         this.value === 'custom' ? 'block' : 'none';
 });
 function toggleAdv() {
-    const el = document.getElementById('adv-opts');
-    el.classList.toggle('open');
+    document.getElementById('adv-opts').classList.toggle('open');
 }
+function syncColors() {
+    const s0 = document.getElementById('color0');
+    const s1 = document.getElementById('color1');
+    if (!s0 || !s1) return;
+    const v0 = s0.value, v1 = s1.value;
+    document.getElementById('c0-dot').style.background = v0;
+    document.getElementById('c1-dot').style.background = v1;
+    // prevent same color
+    [...s0.options].forEach(o => o.disabled = (o.value === v1));
+    [...s1.options].forEach(o => o.disabled = (o.value === v0));
+}
+// init on load
+document.addEventListener('DOMContentLoaded', syncColors);
 </script>
 </body>
 </html>

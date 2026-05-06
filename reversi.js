@@ -69,25 +69,28 @@ function renderStatus(game, me, serverTime) {
 
     const turn = game.turn; // 0=black, 1=white
 
+    const colors = game.piece_colors || ['#111111', '#eeeeee'];
     const playersEl = document.getElementById('status-players');
     const turnEl    = document.getElementById('status-turn');
 
     playersEl.innerHTML = `
         <div class="player-block ${turn === 0 && !game.finished ? 'active' : ''}">
-            <div class="player-disk-mini black"></div>
+            <div class="player-disk-mini" style="background:${diskGradient(colors[0])}"></div>
             <div class="player-name">${p0}</div>
             <div class="player-score">${black}</div>
         </div>
         <div class="score-vs">vs</div>
         <div class="player-block ${turn === 1 && !game.finished ? 'active' : ''}">
-            <div class="player-disk-mini white"></div>
+            <div class="player-disk-mini" style="background:${diskGradient(colors[1])}"></div>
             <div class="player-name">${p1}</div>
             <div class="player-score">${white}</div>
         </div>`;
 
     if (game.finished) {
-        const msg = black > white ? `⚫ ${p0} nyert!`
-                  : white > black ? `⚪ ${p1} nyert!`
+        const d0 = `<span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${colors[0]};vertical-align:middle;margin-right:4px"></span>`;
+        const d1 = `<span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${colors[1]};vertical-align:middle;margin-right:4px"></span>`;
+        const msg = black > white ? `${d0}${p0} nyert!`
+                  : white > black ? `${d1}${p1} nyert!`
                   : 'Döntetlen! 🤝';
         turnEl.innerHTML = `<span class="turn-done">${msg}</span>`;
         gameFinished = true;
@@ -211,8 +214,11 @@ function renderBoard(game, validMoves, me) {
             if (c !== prevBoard[y][x]) {
                 cell.innerHTML = '';
                 if (c !== 0) {
+                    const colors = game.piece_colors || ['#111111','#eeeeee'];
                     const disk = document.createElement('div');
-                    disk.className = 'disk ' + (c === 1 ? 'black' : 'white');
+                    disk.className = 'disk';
+                    disk.style.background = diskGradient(colors[c - 1]);
+                    disk.style.boxShadow = 'inset -2px -2px 5px rgba(0,0,0,.4), 2px 2px 6px rgba(0,0,0,.6)';
                     cell.appendChild(disk);
                 }
                 prevBoard[y][x] = c;
@@ -233,8 +239,37 @@ function renderBoard(game, validMoves, me) {
     }
 }
 
+/* ===== REDIRECT BANNER ===== */
+function redirectTo(msg, url, delay = 2000) {
+    gameFinished = true;
+    if (countdownInterval) clearInterval(countdownInterval);
+    document.getElementById('board').innerHTML = '';
+    const s = document.getElementById('status-turn');
+    if (s) s.innerHTML = `<span class="turn-wait">${escHtml(msg)}</span>`;
+    setTimeout(() => { location.href = url; }, delay);
+}
+
+/* ===== DISK GRADIENT ===== */
+function diskGradient(hex) {
+    const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+    const lr = Math.min(255,r+90), lg = Math.min(255,g+90), lb = Math.min(255,b+90);
+    return `radial-gradient(circle at 35% 35%, rgb(${lr},${lg},${lb}), ${hex})`;
+}
+
 /* ===== RENDER ===== */
 function render(data) {
+    if (data.deleted) {
+        redirectTo('Játék törölve — visszatérés a lobbyba…', 'index.php', 1500);
+        return;
+    }
+    if (data.error === 'no game') {
+        redirectTo('A játék már nem létezik — visszatérés…', 'index.php', 2000);
+        return;
+    }
+    if (data.error === 'spectators_disabled') {
+        redirectTo('Nézők nem engedélyezettek ebben a szobában.', 'index.php', 2500);
+        return;
+    }
     if (data.error) {
         const s = document.getElementById('status-turn');
         if (s) s.innerHTML = `<span class="turn-opp">${escHtml(data.error)}</span>`;
@@ -242,6 +277,10 @@ function render(data) {
     }
 
     const { game, validMoves, me, serverTime } = data;
+
+    /* Hide chat for AI games */
+    const chatPanel = document.getElementById('chat-panel');
+    if (chatPanel) chatPanel.style.display = game.ai ? 'none' : '';
 
     renderBoard(game, validMoves, me);
     renderStatus(game, me, serverTime);

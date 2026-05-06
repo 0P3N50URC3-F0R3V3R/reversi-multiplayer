@@ -39,11 +39,14 @@ if (!is_array($game)) {
 
 /* ===== SCHEMA DEFAULTS (backward compat with old game files) ===== */
 $game += [
-    'chat'         => [],
-    'spectators'   => [],
-    'timer'        => 0,
-    'turnStartedAt'=> null,
-    'ai'           => false,
+    'chat'            => [],
+    'spectators'      => [],
+    'timer'           => 0,
+    'turnStartedAt'   => null,
+    'ai'              => false,
+    'allow_spectators'=> true,
+    'piece_colors'    => ['#111111', '#eeeeee'],
+    'room_name'       => '',
 ];
 
 $name = $_SESSION['name'] ?? '';
@@ -69,15 +72,18 @@ if (isset($_POST['delete'])) {
 
 /* ===== CHAT ===== */
 if (isset($_POST['chat'])) {
-    if (!in_array($name, $game['players'])) {
+    if (!empty($game['ai'])) {
+        /* AI games have no chat */
+    } elseif (!in_array($name, $game['players'])) {
         flock($fp, LOCK_UN);
         fclose($fp);
         exit(json_encode(['error' => 'spectators cannot chat']));
-    }
-    $text = trim($_POST['chat']);
-    if ($text !== '') {
-        $text = mb_substr($text, 0, 200);
-        $game['chat'][] = ['who' => $name, 'text' => $text, 'ts' => time()];
+    } else {
+        $text = trim($_POST['chat']);
+        if ($text !== '') {
+            $text = mb_substr($text, 0, 200);
+            $game['chat'][] = ['who' => $name, 'text' => $text, 'ts' => time()];
+        }
     }
 }
 
@@ -85,6 +91,11 @@ if (isset($_POST['chat'])) {
 if (!in_array($name, $game['players'])) {
     /* Spectator branch */
     if (count($game['players']) >= 2) {
+        if (empty($game['allow_spectators'])) {
+            flock($fp, LOCK_UN);
+            fclose($fp);
+            exit(json_encode(['error' => 'spectators_disabled']));
+        }
         if (!in_array($name, $game['spectators'])) {
             $game['spectators'][] = $name;
         }
@@ -176,12 +187,13 @@ if (
     }
 }
 
-/* ===== AI MOVE (lazy: evaluated on every poll when it's AI turn) ===== */
+/* ===== AI MOVE (min 2s think delay so it feels natural) ===== */
 if (
     !empty($game['ai']) &&
     $game['turn'] === 1 &&
     !$game['finished'] &&
-    count($game['players']) === 2
+    count($game['players']) === 2 &&
+    (time() - ($game['turnStartedAt'] ?? 0)) >= 2
 ) {
     require_once 'lib_ai.php';
     $aiMove = ai_pick_move($game['board'], 2);
