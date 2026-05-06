@@ -54,6 +54,43 @@ function rate_limit_check(): void {
     }
 }
 
+/* ===== REVERSI GAME LOGIC ===== */
+
+function flips(array $b, int $x, int $y, int $p): array {
+    $o   = $p === 1 ? 2 : 1;
+    $res = [];
+    for ($dx = -1; $dx <= 1; $dx++)
+    for ($dy = -1; $dy <= 1; $dy++) {
+        if (!$dx && !$dy) continue;
+        $cx = $x + $dx; $cy = $y + $dy; $tmp = [];
+        while ($cx >= 0 && $cy >= 0 && $cx < 8 && $cy < 8 && $b[$cy][$cx] === $o) {
+            $tmp[] = [$cx, $cy];
+            $cx += $dx; $cy += $dy;
+        }
+        if ($cx >= 0 && $cy >= 0 && $cx < 8 && $cy < 8 && $b[$cy][$cx] === $p)
+            $res = array_merge($res, $tmp);
+    }
+    return $res;
+}
+
+function validMove(array $b, int $x, int $y, int $p): bool {
+    if ($b[$y][$x] !== 0) return false;
+    return count(flips($b, $x, $y, $p)) > 0;
+}
+
+function applyMove(array &$b, int $x, int $y, int $p): void {
+    $b[$y][$x] = $p;
+    foreach (flips($b, $x, $y, $p) as [$fx, $fy])
+        $b[$fy][$fx] = $p;
+}
+
+function hasAnyMove(array $b, int $p): bool {
+    for ($y = 0; $y < 8; $y++)
+    for ($x = 0; $x < 8; $x++)
+        if (validMove($b, $x, $y, $p)) return true;
+    return false;
+}
+
 function cleanup_stale_games(): void {
     $now   = time();
     $files = glob('games/*.json') ?: [];

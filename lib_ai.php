@@ -20,16 +20,17 @@ function ai_weight_matrix(): array {
  * Tie-break: most disks flipped.
  * Returns [x, y] or null if no valid move.
  */
+/* Uses flips() from lib.php (loaded before this file via api.php's require 'lib.php') */
 function ai_pick_move(array $board, int $player): ?array {
-    $weights  = ai_weight_matrix();
-    $best     = null;
+    $weights   = ai_weight_matrix();
+    $best      = null;
     $bestScore = PHP_INT_MIN;
     $bestFlips = -1;
 
     for ($y = 0; $y < 8; $y++) {
         for ($x = 0; $x < 8; $x++) {
             if ($board[$y][$x] !== 0) continue;
-            $flipped = ai_flips($board, $x, $y, $player);
+            $flipped = flips($board, $x, $y, $player);
             if (empty($flipped)) continue;
 
             $score = $weights[$y][$x];
@@ -47,22 +48,4 @@ function ai_pick_move(array $board, int $player): ?array {
     }
 
     return $best;
-}
-
-function ai_flips(array $b, int $x, int $y, int $p): array {
-    $o   = $p === 1 ? 2 : 1;
-    $res = [];
-    for ($dx = -1; $dx <= 1; $dx++) {
-    for ($dy = -1; $dy <= 1; $dy++) {
-        if (!$dx && !$dy) continue;
-        $cx = $x + $dx; $cy = $y + $dy; $tmp = [];
-        while ($cx >= 0 && $cy >= 0 && $cx < 8 && $cy < 8 && $b[$cy][$cx] === $o) {
-            $tmp[] = [$cx, $cy];
-            $cx += $dx; $cy += $dy;
-        }
-        if ($cx >= 0 && $cy >= 0 && $cx < 8 && $cy < 8 && $b[$cy][$cx] === $p) {
-            $res = array_merge($res, $tmp);
-        }
-    }}
-    return $res;
 }

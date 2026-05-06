@@ -243,42 +243,4 @@ echo json_encode([
     'csrf'       => csrf_token(),
 ]);
 
-/* ===== GAME LOGIC ===== */
-
-function validMove($b, $x, $y, $p) {
-    if ($b[$y][$x] !== 0) return false;
-    return count(flips($b, $x, $y, $p)) > 0;
-}
-
-function applyMove(&$b, $x, $y, $p) {
-    $b[$y][$x] = $p;
-    foreach (flips($b, $x, $y, $p) as [$fx, $fy])
-        $b[$fy][$fx] = $p;
-}
-
-function flips($b, $x, $y, $p) {
-    $o = $p == 1 ? 2 : 1;
-    $res = [];
-    for ($dx = -1; $dx <= 1; $dx++)
-    for ($dy = -1; $dy <= 1; $dy++) {
-        if (!$dx && !$dy) continue;
-        $cx = $x + $dx;
-        $cy = $y + $dy;
-        $tmp = [];
-        while ($cx >= 0 && $cy >= 0 && $cx < 8 && $cy < 8 && $b[$cy][$cx] == $o) {
-            $tmp[] = [$cx, $cy];
-            $cx += $dx;
-            $cy += $dy;
-        }
-        if ($cx >= 0 && $cy >= 0 && $cx < 8 && $cy < 8 && $b[$cy][$cx] == $p)
-            $res = array_merge($res, $tmp);
-    }
-    return $res;
-}
-
-function hasAnyMove($b, $p) {
-    for ($y = 0; $y < 8; $y++)
-    for ($x = 0; $x < 8; $x++)
-        if (validMove($b, $x, $y, $p)) return true;
-    return false;
-}
+/* Game logic: validMove, applyMove, flips, hasAnyMove are in lib.php */
