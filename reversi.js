@@ -172,34 +172,65 @@ function escHtml(s) {
         .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-/* ===== BOARD ===== */
-function renderBoard(game, validMoves, me) {
-    const boardEl    = document.getElementById('board');
-    const isSpectator = (me === -1);
+/* ===== BOARD (diff-based — no re-animation on unchanged cells) ===== */
+let cellEls  = null;   // cellEls[y][x] = <div class="cell">
+let prevBoard = null;  // prevBoard[y][x] = 0|1|2
+
+function buildBoard() {
+    const boardEl = document.getElementById('board');
     boardEl.innerHTML = '';
-
-    const validSet = new Set((validMoves || []).map(v => v.join(',')));
-
-    game.board.forEach((row, y) => {
-        row.forEach((c, x) => {
+    cellEls   = [];
+    prevBoard = [];
+    for (let y = 0; y < 8; y++) {
+        cellEls[y]   = [];
+        prevBoard[y] = [];
+        for (let x = 0; x < 8; x++) {
             const cell = document.createElement('div');
             cell.className = 'cell';
-
-            if (c !== 0) {
-                const disk = document.createElement('div');
-                disk.className = 'disk ' + (c === 1 ? 'black' : 'white');
-                cell.appendChild(disk);
-            } else if (!isSpectator && game.turn === me && validSet.has(x + ',' + y)) {
-                cell.classList.add('valid');
-                cell.onclick = () => {
-                    if (moveInFlight) return;
-                    moveInFlight = true;
-                    fetchState([x, y]).then(render).finally(() => { moveInFlight = false; });
-                };
-            }
             boardEl.appendChild(cell);
-        });
-    });
+            cellEls[y][x]   = cell;
+            prevBoard[y][x] = -1; // force first paint
+        }
+    }
+}
+
+function renderBoard(game, validMoves, me) {
+    const isSpectator = (me === -1);
+    const validSet    = new Set((validMoves || []).map(v => v.join(',')));
+
+    if (!cellEls) buildBoard();
+
+    for (let y = 0; y < 8; y++) {
+        for (let x = 0; x < 8; x++) {
+            const c    = game.board[y][x];
+            const cell = cellEls[y][x];
+            const wasValid = cell.classList.contains('valid');
+            const isValid  = !isSpectator && game.turn === me && c === 0 && validSet.has(x + ',' + y);
+
+            /* Update disk only when value changed */
+            if (c !== prevBoard[y][x]) {
+                cell.innerHTML = '';
+                if (c !== 0) {
+                    const disk = document.createElement('div');
+                    disk.className = 'disk ' + (c === 1 ? 'black' : 'white');
+                    cell.appendChild(disk);
+                }
+                prevBoard[y][x] = c;
+            }
+
+            /* Update valid-move highlight */
+            if (isValid !== wasValid) {
+                cell.classList.toggle('valid', isValid);
+                cell.onclick = isValid
+                    ? () => {
+                        if (moveInFlight) return;
+                        moveInFlight = true;
+                        fetchState([x, y]).then(render).finally(() => { moveInFlight = false; });
+                    }
+                    : null;
+            }
+        }
+    }
 }
 
 /* ===== RENDER ===== */
