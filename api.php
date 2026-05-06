@@ -18,7 +18,10 @@ $file = "games/$id.json";
 if (!file_exists($file)) exit(json_encode(['error' => 'no game']));
 
 $fp = fopen($file, 'c+');
-if (!$fp) exit(json_encode(['error' => 'file error']));
+if (!$fp) {
+    http_response_code(500);
+    exit(json_encode(['error' => 'file error']));
+}
 
 /* ===== LOCK ===== */
 flock($fp, LOCK_EX);
@@ -27,6 +30,12 @@ flock($fp, LOCK_EX);
 rewind($fp);
 $data = stream_get_contents($fp);
 $game = json_decode($data, true);
+if (!is_array($game)) {
+    flock($fp, LOCK_UN);
+    fclose($fp);
+    http_response_code(500);
+    exit(json_encode(['error' => 'corrupt game']));
+}
 
 /* ===== SCHEMA DEFAULTS (backward compat with old game files) ===== */
 $game += [
@@ -38,6 +47,12 @@ $game += [
 ];
 
 $name = $_SESSION['name'] ?? '';
+if ($name === '') {
+    flock($fp, LOCK_UN);
+    fclose($fp);
+    http_response_code(401);
+    exit(json_encode(['error' => 'login required']));
+}
 
 /* ===== DELETE ===== */
 if (isset($_POST['delete'])) {
@@ -62,7 +77,6 @@ if (isset($_POST['chat'])) {
     $text = trim($_POST['chat']);
     if ($text !== '') {
         $text = mb_substr($text, 0, 200);
-        $text = htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
         $game['chat'][] = ['who' => $name, 'text' => $text, 'ts' => time()];
     }
 }

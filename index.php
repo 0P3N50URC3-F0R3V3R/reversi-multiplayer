@@ -37,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $id = $customId;
                     }
                 } else {
-                    $id = uniqid();
+                    $id = bin2hex(random_bytes(8));
                 }
 
                 if ($error === '') {
@@ -64,9 +64,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'turnStartedAt'=> $ai ? time() : null,
                         'ai'           => $ai,
                     ];
-                    file_put_contents("games/$id.json", json_encode($game));
-                    header("Location: game.php?id=$id");
-                    exit;
+                    /* Exclusive create: fails atomically if file already exists */
+                    $path = "games/$id.json";
+                    $wfp  = fopen($path, 'x');
+                    if ($wfp === false) {
+                        $error = 'Ez az azonosító már foglalt.';
+                    } else {
+                        fwrite($wfp, json_encode($game));
+                        fclose($wfp);
+                        header("Location: game.php?id=$id");
+                        exit;
+                    }
                 }
             }
 
@@ -186,7 +194,7 @@ foreach ($files as $file) {
   <tbody>
   <?php foreach ($openGames as $g): ?>
   <tr>
-    <td><code><?= $g['id'] ?></code></td>
+    <td><code><?= htmlspecialchars($g['id'], ENT_QUOTES, 'UTF-8') ?></code></td>
     <td><?= $g['creator'] ?></td>
     <td>
       <form method="post" class="d-inline">
@@ -210,7 +218,7 @@ foreach ($files as $file) {
   <tbody>
   <?php foreach ($activeGames as $g): ?>
   <tr>
-    <td><code><?= $g['id'] ?></code></td>
+    <td><code><?= htmlspecialchars($g['id'], ENT_QUOTES, 'UTF-8') ?></code></td>
     <td><?= implode(' vs ', $g['players']) ?><?= $g['ai'] ? ' 🤖' : '' ?></td>
     <td><a href="game.php?id=<?= htmlspecialchars($g['id'], ENT_QUOTES, 'UTF-8') ?>&spectate=1"
            class="btn btn-outline-secondary btn-sm">Nézőként belép</a></td>

@@ -1,6 +1,8 @@
 let csrf = CSRF_INIT;
 let lastChatTs = 0;
 let countdownInterval = null;
+let moveInFlight = false;
+let gameFinished = false;
 
 async function fetchState(move = null, extraFields = {}) {
     const f = new FormData();
@@ -52,7 +54,7 @@ function renderChat(chatArr, isSpectator) {
     newMessages.forEach(m => {
         const line = document.createElement("div");
         const who = m.who === 'system'
-            ? '<em class="text-muted">' + m.text + '</em>'
+            ? '<em class="text-muted">' + escapeHtml(m.text) + '</em>'
             : '<b>' + escapeHtml(m.who) + '</b>: ' + escapeHtml(m.text);
         line.innerHTML = who;
         container.appendChild(line);
@@ -138,7 +140,11 @@ function render(data) {
                 validSet.has(x + "," + y)
             ) {
                 cell.classList.add("valid");
-                cell.onclick = () => fetchState([x, y]).then(render);
+                cell.onclick = () => {
+                    if (moveInFlight) return;
+                    moveInFlight = true;
+                    fetchState([x, y]).then(render).finally(() => { moveInFlight = false; });
+                };
             }
 
             boardEl.appendChild(cell);
@@ -155,6 +161,8 @@ function render(data) {
     }
 
     if (game.finished) {
+        gameFinished = true;
+        if (countdownInterval) clearInterval(countdownInterval);
         if (black > white)      status += "⚫ Nyert!";
         else if (white > black) status += "⚪ Nyert!";
         else                    status += "Döntetlen";
@@ -184,7 +192,9 @@ async function loop() {
     } catch (e) {
         console.error(e);
     }
-    setTimeout(loop, 1000);
+    if (!gameFinished) {
+        setTimeout(loop, 1000);
+    }
 }
 
 /* Chat send */
