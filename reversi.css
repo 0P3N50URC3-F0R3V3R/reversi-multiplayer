@@ -41,3 +41,31 @@
 .flip {
     transform: rotateY(180deg);
 }
+
+#chat-panel {
+    max-width: 510px;
+}
+
+#chat-messages {
+    height: 150px;
+    overflow-y: auto;
+    background: #f8f9fa;
+    font-size: .9em;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 8px;
+}
+
+#chat-messages div {
+    margin-bottom: 2px;
+}
+
+#chat-messages em {
+    color: #888;
+    font-size: .85em;
+}
+
+#status {
+    min-height: 1.5em;
+    font-size: 1.05em;
+}
