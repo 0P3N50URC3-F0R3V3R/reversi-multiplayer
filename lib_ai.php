@@ -131,9 +131,12 @@ function ai_pick_move(array $board, int $player, string $difficulty = 'hard'): ?
         'expert' => 6,
         default  => 4,  // hard
     };
-    /* Endgame exact solve: expert at ≤18 empty, others at ≤14 */
-    $endgameThreshold = ($difficulty === 'expert') ? 46 : 50;
-    $depth = ($disks >= $endgameThreshold) ? (64 - $disks) : $baseDepth;
+    /* Endgame exact solve: only for hard/expert */
+    $depth = match ($difficulty) {
+        'expert' => ($disks >= 46) ? (64 - $disks) : 6,
+        'hard'   => ($disks >= 50) ? (64 - $disks) : 4,
+        default  => $baseDepth,  // easy/medium: no endgame solve
+    };
 
     $opp       = $player === 1 ? 2 : 1;
     $best      = null;
