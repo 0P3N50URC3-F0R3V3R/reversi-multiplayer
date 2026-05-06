@@ -58,7 +58,7 @@ $shortId    = substr($id, 0, 8) . '…';
     <div id="action-bar" class="action-bar"></div>
 
     <!-- Chat -->
-    <div class="chat-wrap">
+    <div id="chat-panel" class="chat-wrap">
       <div class="chat-header">💬 Chat</div>
       <div id="chat-messages" class="chat-messages"></div>
       <div id="chat-input-wrap" class="chat-input-row">
