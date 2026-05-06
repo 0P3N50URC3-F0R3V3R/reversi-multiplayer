@@ -79,11 +79,14 @@ function startCountdown(turnStartedAt, timer, serverTime) {
         return;
     }
 
+    /* elapsed on server at poll time + client time since poll */
+    const serverElapsed   = serverTime - turnStartedAt;
+    const clientReceiveMs = Date.now();
+
     function tick() {
-        const clientNow = Math.floor(Date.now() / 1000);
-        const elapsed   = clientNow - (serverTime - (turnStartedAt - serverTime) + turnStartedAt);
-        const remaining = timer - Math.floor(clientNow - (turnStartedAt + (clientNow - serverTime)));
-        const disp = Math.max(0, remaining);
+        const clientElapsed = (Date.now() - clientReceiveMs) / 1000;
+        const remaining     = timer - serverElapsed - clientElapsed;
+        const disp = Math.max(0, Math.floor(remaining));
         timerEl.textContent = disp + "s";
         if (disp === 0) clearInterval(countdownInterval);
     }
