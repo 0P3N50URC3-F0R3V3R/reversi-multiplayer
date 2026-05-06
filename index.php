@@ -61,6 +61,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         if (!in_array($timerVal, [0, 30, 60, 120])) $timerVal = 0;
                     }
 
+                    /* AI difficulty */
+                    $validDiffs = ['easy','medium','hard','expert'];
+                    $aiDiff = in_array($_POST['ai_difficulty'] ?? '', $validDiffs)
+                        ? $_POST['ai_difficulty'] : 'hard';
+
                     /* Colors */
                     $colorKeys = array_keys(PIECE_COLORS);
                     $c0 = in_array($_POST['color0'] ?? '', $colorKeys) ? $_POST['color0'] : '#111111';
@@ -85,6 +90,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'timer'           => $timerVal,
                         'turnStartedAt'   => $ai ? time() : null,
                         'ai'              => $ai,
+                        'ai_difficulty'   => $ai ? $aiDiff : 'hard',
                         'piece_colors'    => [$c0, $c1],
                         'allow_spectators'=> $allowSpec,
                         'room_name'       => $roomName,
@@ -284,6 +290,15 @@ foreach ($files as $file) {
               <span style="color:#888;font-size:.8em">2. játékos</span>
             </div>
           </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">🤖 AI nehézség <span style="color:#556;font-style:italic">(csak gép ellen módban)</span></label>
+          <select class="form-select" name="ai_difficulty">
+            <option value="easy">Könnyű — véletlenszerű + gyenge</option>
+            <option value="medium">Közepes — 2 lépés előre</option>
+            <option value="hard" selected>Nehéz — 4 lépés előre (alapért.)</option>
+            <option value="expert">Mester — 6 lépés + végjáték megoldó</option>
+          </select>
         </div>
         <div class="form-group">
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer">

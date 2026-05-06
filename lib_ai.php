@@ -106,21 +106,37 @@ function ai_negamax(array $b, int $player, int $depth, int $alpha, int $beta): i
 }
 
 /*
- * Public entry point.
- * Returns [x, y] best move for $player, or null if no moves.
- * Uses depth 4 normally; switches to deeper solve near endgame.
+ * Difficulty → search depth mapping.
+ * 'easy'   : depth 1, 60% random move
+ * 'medium' : depth 2
+ * 'hard'   : depth 4  (default)
+ * 'expert' : depth 6, deeper endgame solve
  */
-function ai_pick_move(array $board, int $player): ?array {
+function ai_pick_move(array $board, int $player, string $difficulty = 'hard'): ?array {
     $moves = ai_moves($board, $player);
     if (empty($moves)) return null;
-    if (count($moves) === 1) return $moves[0]; // only one option
+    if (count($moves) === 1) return $moves[0];
+
+    /* Easy: mostly random, occasionally greedy depth-1 */
+    if ($difficulty === 'easy') {
+        if (count($moves) > 1 && (mt_rand(0, 9) < 6)) {
+            return $moves[array_rand($moves)];
+        }
+    }
 
     $disks = ai_disk_count($board);
-    /* Endgame exact solve when ≤14 empty squares */
-    $depth = ($disks >= 50) ? (64 - $disks) : 4;
+    $baseDepth = match ($difficulty) {
+        'easy'   => 1,
+        'medium' => 2,
+        'expert' => 6,
+        default  => 4,  // hard
+    };
+    /* Endgame exact solve: expert at ≤18 empty, others at ≤14 */
+    $endgameThreshold = ($difficulty === 'expert') ? 46 : 50;
+    $depth = ($disks >= $endgameThreshold) ? (64 - $disks) : $baseDepth;
 
-    $opp     = $player === 1 ? 2 : 1;
-    $best    = null;
+    $opp       = $player === 1 ? 2 : 1;
+    $best      = null;
     $bestScore = PHP_INT_MIN;
 
     $weights = ai_weights();

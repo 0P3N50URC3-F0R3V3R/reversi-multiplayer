@@ -44,6 +44,7 @@ $game += [
     'timer'           => 0,
     'turnStartedAt'   => null,
     'ai'              => false,
+    'ai_difficulty'   => 'hard',
     'allow_spectators'=> true,
     'piece_colors'    => ['#111111', '#eeeeee'],
     'room_name'       => '',
@@ -196,7 +197,7 @@ if (
     (time() - ($game['turnStartedAt'] ?? 0)) >= 2
 ) {
     require_once 'lib_ai.php';
-    $aiMove = ai_pick_move($game['board'], 2);
+    $aiMove = ai_pick_move($game['board'], 2, $game['ai_difficulty'] ?? 'hard');
     if ($aiMove !== null) {
         [$ax, $ay] = $aiMove;
         applyMove($game['board'], $ax, $ay, 2);
