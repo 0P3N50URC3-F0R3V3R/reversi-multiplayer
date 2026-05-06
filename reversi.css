@@ -162,6 +162,16 @@ body { margin: 0; font-family: system-ui, sans-serif; background: #1a2a1a; color
 .action-bar { display: flex; gap: 8px; flex-wrap: wrap; }
 .action-bar button, .action-bar a { font-size: .85em; }
 
+#delete-btn {
+    background: transparent !important;
+    border: 1px solid #dc3545 !important;
+    color: #dc3545 !important;
+}
+#delete-btn:hover {
+    background: #dc3545 !important;
+    color: #fff !important;
+}
+
 /* ===== CHAT ===== */
 .chat-wrap {
     background: #1e321e;

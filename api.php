@@ -191,13 +191,37 @@ if (
         $game['turn']          = 0;
         $game['turnStartedAt'] = time();
 
-        /* PASS logic after AI */
+        /* PASS: if human has no moves after AI move, give turn back to AI */
         if (!hasAnyMove($game['board'], 1)) {
             if (hasAnyMove($game['board'], 2)) {
                 $game['turn']          = 1;
                 $game['turnStartedAt'] = time();
             }
+            /* else: neither can move → game-over block fires below */
         }
+    } else {
+        /* AI has no valid moves — pass to human (or game over) */
+        $game['turn']          = 0;
+        $game['turnStartedAt'] = time();
+    }
+}
+
+/* ===== AUTO-PASS (current player has no moves but opponent does) ===== */
+if (
+    !$game['finished'] &&
+    count($game['players']) === 2 &&
+    $game['turn'] >= 0
+) {
+    $curBoardVal = $game['turn'] + 1;   // 1=black, 2=white
+    $oppBoardVal = 3 - $curBoardVal;
+    if (!hasAnyMove($game['board'], $curBoardVal) && hasAnyMove($game['board'], $oppBoardVal)) {
+        $game['turn']          = 1 - $game['turn'];
+        $game['turnStartedAt'] = time();
+        $game['chat'][]        = [
+            'who'  => 'system',
+            'text' => $game['players'][$curBoardVal - 1] . ' passzol (nincs érvényes lépés)',
+            'ts'   => time(),
+        ];
     }
 }
 
