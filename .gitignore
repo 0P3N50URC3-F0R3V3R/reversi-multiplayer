@@ -1,4 +1,6 @@
 games/*.json
-.omc/state/
+.omc/
+.claude/
 php/
 php-portable.zip
+*.png

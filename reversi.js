@@ -4,217 +4,242 @@ let countdownInterval = null;
 let moveInFlight = false;
 let gameFinished = false;
 
-async function fetchState(move = null, extraFields = {}) {
+/* ===== API ===== */
+async function fetchState(move = null, extra = {}) {
     const f = new FormData();
-    f.append("id",   GAME_ID);
-    f.append("csrf", csrf);
-    if (move) {
-        f.append("move[]", move[0]);
-        f.append("move[]", move[1]);
-    }
-    for (const [k, v] of Object.entries(extraFields)) {
-        f.append(k, v);
-    }
-    const r = await fetch("api.php", { method: "POST", body: f });
-    const data = await r.json();
-    if (data.csrf) csrf = data.csrf; // refresh token from server
-    return data;
+    f.append('id',   GAME_ID);
+    f.append('csrf', csrf);
+    if (move) { f.append('move[]', move[0]); f.append('move[]', move[1]); }
+    for (const [k, v] of Object.entries(extra)) f.append(k, v);
+    const r = await fetch('api.php', { method: 'POST', body: f });
+    const d = await r.json();
+    if (d.csrf) csrf = d.csrf;
+    return d;
 }
 
+/* ===== COPY ROOM ID ===== */
+document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('copy-room-btn');
+    if (btn) {
+        btn.addEventListener('click', () => {
+            navigator.clipboard.writeText(FULL_ID).then(() => {
+                btn.classList.add('copied');
+                setTimeout(() => btn.classList.remove('copied'), 1800);
+            });
+        });
+    }
+});
+
+/* ===== DELETE BUTTON ===== */
 function setupDeleteBtn(game, me) {
-    const delBtn = document.getElementById("deleteBtn");
-    if (game.creator === game.players[me]) {
-        delBtn.style.display = "inline-block";
-        delBtn.onclick = async () => {
-            if (confirm("Biztos törlöd a játékot?")) {
+    const bar = document.getElementById('action-bar');
+    if (!bar) return;
+
+    const myName = game.players[me] ?? '';
+    const isCreator = myName !== '' && game.creator === myName;
+
+    let delBtn = document.getElementById('delete-btn');
+    if (isCreator) {
+        if (!delBtn) {
+            delBtn = document.createElement('button');
+            delBtn.id = 'delete-btn';
+            delBtn.className = 'btn btn-outline-danger btn-sm';
+            delBtn.textContent = '🗑 Játék törlése';
+            delBtn.onclick = async () => {
+                if (!confirm('Biztos törlöd a játékot?')) return;
                 const f = new FormData();
-                f.append("id",     GAME_ID);
-                f.append("csrf",   csrf);
-                f.append("delete", 1);
-                await fetch("api.php", { method: "POST", body: f });
-                location.href = "index.php";
-            }
-        };
+                f.append('id', GAME_ID); f.append('csrf', csrf); f.append('delete', 1);
+                await fetch('api.php', { method: 'POST', body: f });
+                location.href = 'index.php';
+            };
+            bar.appendChild(delBtn);
+        }
     } else {
-        delBtn.style.display = "none";
+        delBtn?.remove();
     }
 }
 
-function renderChat(chatArr, isSpectator) {
-    const container = document.getElementById("chat-messages");
-    const inputWrap  = document.getElementById("chat-input-wrap");
+/* ===== STATUS ===== */
+function renderStatus(game, me, serverTime) {
+    const isSpectator = (me === -1);
+    const p0 = escHtml(game.players[0] ?? '?');
+    const p1 = escHtml(game.players[1] ?? '…');
+    let black = 0, white = 0;
+    game.board.forEach(row => row.forEach(c => { if (c === 1) black++; else if (c === 2) white++; }));
 
-    if (isSpectator) {
-        if (inputWrap) inputWrap.style.display = "none";
+    const turn = game.turn; // 0=black, 1=white
+
+    const playersEl = document.getElementById('status-players');
+    const turnEl    = document.getElementById('status-turn');
+
+    playersEl.innerHTML = `
+        <div class="player-block ${turn === 0 && !game.finished ? 'active' : ''}">
+            <div class="player-disk-mini black"></div>
+            <div class="player-name">${p0}</div>
+            <div class="player-score">${black}</div>
+        </div>
+        <div class="score-vs">vs</div>
+        <div class="player-block ${turn === 1 && !game.finished ? 'active' : ''}">
+            <div class="player-disk-mini white"></div>
+            <div class="player-name">${p1}</div>
+            <div class="player-score">${white}</div>
+        </div>`;
+
+    if (game.finished) {
+        const msg = black > white ? `⚫ ${p0} nyert!`
+                  : white > black ? `⚪ ${p1} nyert!`
+                  : 'Döntetlen! 🤝';
+        turnEl.innerHTML = `<span class="turn-done">${msg}</span>`;
+        gameFinished = true;
+        if (countdownInterval) clearInterval(countdownInterval);
+    } else if (game.turn === -1) {
+        turnEl.innerHTML = `<span class="turn-wait">⏳ Várakozás másik játékosra…</span>`;
+    } else if (isSpectator) {
+        const who = turn === 0 ? `⚫ ${p0}` : `⚪ ${p1}`;
+        turnEl.innerHTML = `<span class="turn-spectate">👁 ${who} lép</span>`;
+    } else if (turn === me) {
+        turnEl.innerHTML = `<span class="turn-you">🟢 A te köröd</span>`;
+    } else {
+        turnEl.innerHTML = `<span class="turn-opp">🔴 Ellenfél köre</span>`;
     }
 
-    const newMessages = chatArr.filter(m => m.ts > lastChatTs);
-    if (newMessages.length === 0) return;
-
-    newMessages.forEach(m => {
-        const line = document.createElement("div");
-        const who = m.who === 'system'
-            ? '<em class="text-muted">' + escapeHtml(m.text) + '</em>'
-            : '<b>' + escapeHtml(m.who) + '</b>: ' + escapeHtml(m.text);
-        line.innerHTML = who;
-        container.appendChild(line);
-        lastChatTs = Math.max(lastChatTs, m.ts);
-    });
-    container.scrollTop = container.scrollHeight;
-}
-
-function escapeHtml(str) {
-    return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
+    if (game.timer > 0 && !game.finished && game.turn !== -1) {
+        let timerRow = document.getElementById('timer-row');
+        if (!timerRow) {
+            timerRow = document.createElement('div');
+            timerRow.id = 'timer-row';
+            timerRow.className = 'timer-row';
+            timerRow.innerHTML = '⏱ <span id="countdown">—</span>';
+            document.getElementById('status-turn').after(timerRow);
+        }
+        startCountdown(game.turnStartedAt, game.timer, serverTime);
+    } else {
+        document.getElementById('timer-row')?.remove();
+        if (countdownInterval) clearInterval(countdownInterval);
+    }
 }
 
 function startCountdown(turnStartedAt, timer, serverTime) {
     if (countdownInterval) clearInterval(countdownInterval);
-    const timerEl = document.getElementById("countdown");
-    if (!timerEl) return;
+    const el = document.getElementById('countdown');
+    if (!el || !turnStartedAt) return;
 
-    if (!timer || timer === 0 || !turnStartedAt) {
-        timerEl.textContent = "—";
-        return;
-    }
-
-    /* elapsed on server at poll time + client time since poll */
     const serverElapsed   = serverTime - turnStartedAt;
     const clientReceiveMs = Date.now();
 
     function tick() {
         const clientElapsed = (Date.now() - clientReceiveMs) / 1000;
-        const remaining     = timer - serverElapsed - clientElapsed;
+        const remaining = timer - serverElapsed - clientElapsed;
         const disp = Math.max(0, Math.floor(remaining));
-        timerEl.textContent = disp + "s";
+        el.textContent = disp + 's';
+        const row = document.getElementById('timer-row');
+        if (row) row.className = 'timer-row' + (disp <= 10 ? ' timer-urgent' : '');
         if (disp === 0) clearInterval(countdownInterval);
     }
-
     tick();
     countdownInterval = setInterval(tick, 500);
 }
 
-function render(data) {
-    if (data.error) {
-        if (data.error === 'no game') {
-            document.getElementById("status").textContent = "A játék nem található vagy törölve lett.";
+/* ===== CHAT ===== */
+function renderChat(chatArr, isSpectator) {
+    const box  = document.getElementById('chat-messages');
+    const wrap = document.getElementById('chat-input-wrap');
+    if (!box) return;
+
+    if (isSpectator && wrap) wrap.style.display = 'none';
+
+    const newMsgs = chatArr.filter(m => m.ts > lastChatTs);
+    if (!newMsgs.length) return;
+
+    newMsgs.forEach(m => {
+        const div = document.createElement('div');
+        if (m.who === 'system') {
+            div.className = 'chat-msg system';
+            div.textContent = m.text;
+        } else {
+            div.className = 'chat-msg';
+            div.innerHTML = `<b>${escHtml(m.who)}</b>: ${escHtml(m.text)}`;
         }
-        return;
-    }
+        box.appendChild(div);
+        lastChatTs = Math.max(lastChatTs, m.ts);
+    });
+    box.scrollTop = box.scrollHeight;
+}
 
-    const { game, validMoves, me, serverTime } = data;
-    const boardEl  = document.getElementById("board");
-    const statusEl = document.getElementById("status");
+function escHtml(s) {
+    return String(s)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ===== BOARD ===== */
+function renderBoard(game, validMoves, me) {
+    const boardEl    = document.getElementById('board');
     const isSpectator = (me === -1);
+    boardEl.innerHTML = '';
 
-    /* ===== waiting for 2nd player ===== */
-    if (game.turn === -1) {
-        statusEl.innerHTML = "⏳ Várakozás másik játékosra...";
-        boardEl.innerHTML  = "";
-        setupDeleteBtn(game, me);
-        return;
-    }
-
-    boardEl.innerHTML = "";
-
-    const validSet = new Set((validMoves || []).map(v => v.join(",")));
-
-    let black = 0, white = 0;
+    const validSet = new Set((validMoves || []).map(v => v.join(',')));
 
     game.board.forEach((row, y) => {
         row.forEach((c, x) => {
-            const cell = document.createElement("div");
-            cell.className = "cell";
+            const cell = document.createElement('div');
+            cell.className = 'cell';
 
             if (c !== 0) {
-                const disk = document.createElement("div");
-                disk.className = "disk " + (c === 1 ? "black" : "white") + " flip";
+                const disk = document.createElement('div');
+                disk.className = 'disk ' + (c === 1 ? 'black' : 'white');
                 cell.appendChild(disk);
-                c === 1 ? black++ : white++;
-            } else if (
-                !isSpectator &&
-                game.turn === me &&
-                validSet.has(x + "," + y)
-            ) {
-                cell.classList.add("valid");
+            } else if (!isSpectator && game.turn === me && validSet.has(x + ',' + y)) {
+                cell.classList.add('valid');
                 cell.onclick = () => {
                     if (moveInFlight) return;
                     moveInFlight = true;
                     fetchState([x, y]).then(render).finally(() => { moveInFlight = false; });
                 };
             }
-
             boardEl.appendChild(cell);
         });
     });
-
-    /* ===== status bar ===== */
-    const p0 = escapeHtml(game.players[0] ?? "?");
-    const p1 = escapeHtml(game.players[1] ?? "várakozás...");
-    let status = `<b>⚫ ${p0}</b> vs <b>⚪ ${p1}</b><br>⚫ ${black} – ⚪ ${white}<br>`;
-
-    if (game.timer > 0) {
-        status += `⏱ <span id="countdown">—</span><br>`;
-    }
-
-    if (game.finished) {
-        gameFinished = true;
-        if (countdownInterval) clearInterval(countdownInterval);
-        if (black > white)      status += "⚫ Nyert!";
-        else if (white > black) status += "⚪ Nyert!";
-        else                    status += "Döntetlen";
-    } else if (isSpectator) {
-        const turnName = escapeHtml(game.players[game.turn] ?? "?");
-        status += `👁 Néző mód — ${turnName} lép`;
-    } else if (game.turn === me) {
-        status += "🟢 A te köröd";
-    } else {
-        status += "🔴 Ellenfél köre";
-    }
-
-    statusEl.innerHTML = status;
-
-    if (game.timer > 0) {
-        startCountdown(game.turnStartedAt, game.timer, serverTime);
-    }
-
-    setupDeleteBtn(game, isSpectator ? -1 : me);
-    renderChat(game.chat || [], isSpectator);
 }
 
+/* ===== RENDER ===== */
+function render(data) {
+    if (data.error) {
+        const s = document.getElementById('status-turn');
+        if (s) s.innerHTML = `<span class="turn-opp">${escHtml(data.error)}</span>`;
+        return;
+    }
+
+    const { game, validMoves, me, serverTime } = data;
+
+    renderBoard(game, validMoves, me);
+    renderStatus(game, me, serverTime);
+    setupDeleteBtn(game, me);
+    renderChat(game.chat || [], me === -1);
+}
+
+/* ===== LOOP ===== */
 async function loop() {
     try {
         const data = await fetchState();
         render(data);
-    } catch (e) {
-        console.error(e);
-    }
-    if (!gameFinished) {
-        setTimeout(loop, 1000);
-    }
+    } catch (e) { console.error(e); }
+    if (!gameFinished) setTimeout(loop, 1000);
 }
 
-/* Chat send */
-document.addEventListener("DOMContentLoaded", () => {
-    const sendBtn  = document.getElementById("chat-send");
-    const chatInput = document.getElementById("chat-input");
-
-    if (sendBtn && chatInput) {
-        const doSend = async () => {
-            const text = chatInput.value.trim();
-            if (!text) return;
-            chatInput.value = "";
-            const data = await fetchState(null, { chat: text });
-            render(data);
-        };
-        sendBtn.addEventListener("click", doSend);
-        chatInput.addEventListener("keydown", e => {
-            if (e.key === "Enter") doSend();
-        });
-    }
+/* ===== CHAT SEND ===== */
+document.addEventListener('DOMContentLoaded', () => {
+    const btn   = document.getElementById('chat-send');
+    const input = document.getElementById('chat-input');
+    if (!btn || !input) return;
+    const send = async () => {
+        const t = input.value.trim();
+        if (!t) return;
+        input.value = '';
+        render(await fetchState(null, { chat: t }));
+    };
+    btn.addEventListener('click', send);
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') send(); });
 });
 
 loop();

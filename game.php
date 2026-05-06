@@ -11,40 +11,70 @@ if (!valid_game_id($id)) {
     exit;
 }
 $isSpectate = isset($_GET['spectate']) && $_GET['spectate'] === '1';
+$shortId    = substr($id, 0, 8) . '…';
 ?>
 <!doctype html>
-<html>
+<html lang="hu">
 <head>
 <meta charset="utf-8">
-<title>Reversi</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reversi – Szoba</title>
 <link href="js/bootstrap.min.css" rel="stylesheet">
 <link href="reversi.css" rel="stylesheet">
 </head>
-<body class="container mt-3">
+<body>
 
-<h4>Szoba azonosító ID: <?= htmlspecialchars($id, ENT_QUOTES, 'UTF-8') ?></h4>
-<div id="status" class="mb-2"></div>
+<!-- TOP NAV -->
+<nav class="game-nav">
+  <a href="index.php" class="back-link">← Lobby</a>
+  <span class="room-id-wrap">
+    <span class="room-label">Szoba:</span>
+    <code id="room-id-text"><?= htmlspecialchars($shortId, ENT_QUOTES, 'UTF-8') ?></code>
+    <button class="copy-btn" id="copy-room-btn" title="Azonosító másolása">📋</button>
+  </span>
+  <?php if ($isSpectate): ?>
+  <span class="spectator-badge">👁 Néző</span>
+  <?php endif; ?>
+</nav>
 
-<div id="board" class="board mb-3"></div>
+<!-- MAIN LAYOUT -->
+<div class="game-layout">
 
-<button id="deleteBtn" class="btn btn-danger btn-sm" style="display:none">
-    Játék törlése
-</button>
+  <!-- LEFT: board -->
+  <div class="board-col">
+    <div id="board" class="board"></div>
+  </div>
 
-<!-- Chat panel -->
-<div id="chat-panel" class="mt-3" style="max-width:500px">
-  <div id="chat-messages" class="border rounded p-2 mb-2"
-       style="height:150px;overflow-y:auto;background:#f8f9fa;font-size:.9em"></div>
-  <div id="chat-input-wrap" class="input-group">
-    <input id="chat-input" class="form-control" type="text" maxlength="200" placeholder="Üzenet...">
-    <button id="chat-send" class="btn btn-outline-secondary">Küldés</button>
+  <!-- RIGHT: status + controls + chat -->
+  <div class="side-col">
+
+    <!-- Status card -->
+    <div class="status-card" id="status-card">
+      <div id="status-players" class="status-players"></div>
+      <div id="status-turn"    class="status-turn"></div>
+    </div>
+
+    <!-- Delete / action buttons -->
+    <div id="action-bar" class="action-bar"></div>
+
+    <!-- Chat -->
+    <div class="chat-wrap">
+      <div class="chat-header">💬 Chat</div>
+      <div id="chat-messages" class="chat-messages"></div>
+      <div id="chat-input-wrap" class="chat-input-row">
+        <input id="chat-input" class="chat-input" type="text" maxlength="200" placeholder="Üzenet…">
+        <button id="chat-send" class="chat-send-btn">Küld</button>
+      </div>
+    </div>
+
   </div>
 </div>
 
 <script>
-const GAME_ID    = "<?= htmlspecialchars($id, ENT_QUOTES, 'UTF-8') ?>";
-const CSRF_INIT  = "<?= htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8') ?>";
+const GAME_ID   = "<?= htmlspecialchars($id, ENT_QUOTES, 'UTF-8') ?>";
+const CSRF_INIT = "<?= htmlspecialchars(csrf_token(), ENT_QUOTES, 'UTF-8') ?>";
 const IS_SPECTATE = <?= $isSpectate ? 'true' : 'false' ?>;
+const FULL_ID   = "<?= htmlspecialchars($id, ENT_QUOTES, 'UTF-8') ?>";
 </script>
 <script src="reversi.js"></script>
 </body>
