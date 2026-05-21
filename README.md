@@ -1,141 +1,141 @@
-# ♟ Reversi Többjátékos
+# ♟ Reversi Multiplayer
 
-Böngészőalapú többjátékos Reversi/Othello játék. PHP backend, vanilla JS frontend, JSON fájl alapú tárolás. Sötét téma, testreszabható korongszínek, AI ellenfél, szoba kezelés.
-
----
-
-## Képernyőképek
-
-A játék egy sötét témájú, 8×8-as Reversi táblát jelenít meg egyéni korongszínekkel, valós idejű állapottal és integrált chattel.
+Browser-based multiplayer Reversi/Othello game. PHP backend, vanilla JS frontend, JSON file-based storage. Dark theme, customizable piece colors, AI opponent, room management.
 
 ---
 
-## Funkciók
+## Screenshots
+
+The game features a dark-themed, 8×8 Reversi board with custom piece colors, real-time status updates, and integrated chat.
+
+---
+
+## Features
 
 ### Lobby
-- Szobák listázása (nyitott + folyamatban lévő)
-- Szoba létrehozása testreszabható beállításokkal
-- Csatlakozás szoba azonosítóval
-- Nézőként való belépés aktív játékba
-- Visszatérés saját aktív szobába
-- Lejárt szobák automatikus törlése
+- List rooms (open + in progress)
+- Create room with customizable settings
+- Join by room ID
+- Join active game as a spectator
+- Return to your own active room
+- Auto-delete expired rooms
 
-### Játék
-- 2 játékos emberi mód (ugyanazon hálózaton)
-- Gép elleni mód (AI)
-- Valós idejű 1 másodperces polling
-- Szoba chat (AI mód kivételével)
-- Körönkénti visszaszámlálás (opcionális)
-- Automatikus passz ha nincs lépés
-- Automata játék vége detekció
+### Game
+- 2-player human mode (over the network)
+- Player vs Machine mode (AI)
+- Real-time 1-second polling
+- Room chat (except in AI mode)
+- Per-turn countdown timer (optional)
+- Auto-pass if no valid moves available
+- Automatic end-game detection
 
-### Testreszabás (szoba létrehozásakor)
-- **Szoba neve** — megjelenítési név a lobbyban
-- **Egyéni azonosító** — saját URL azonosító (betű/szám)
-- **Időkorlát** — Ki / 30mp / 60mp / 120mp / Egyéni (5–600mp)
-- **Korongszínek** — 12 szín előre meghatározva, mindkét játékoshoz külön, duplikáció tiltva
-- **Nézők tiltása** — nézői csatlakozás letiltható
-- **AI nehézség** — Könnyű / Közepes / Nehéz / Mester (csak AI módban)
+### Customization (upon room creation)
+- **Room name** — display name in the lobby
+- **Custom ID** — custom URL identifier (alphanumeric)
+- **Time limit** — Off / 30s / 60s / 120s / Custom (5–600s)
+- **Piece colors** — 12 predefined colors, separate for each player, duplicates restricted
+- **Disable spectators** — spectator joining can be disabled
+- **AI difficulty** — Easy / Medium / Hard / Expert (AI mode only)
 
-### AI ellenfél
-| Szint | Algoritmus | Mélység | Végjáték |
+### AI Opponent
+| Level | Algorithm | Depth | Endgame |
 |-------|-----------|---------|----------|
-| Könnyű | 60% véletlenszerű + greedy | 1 | Nincs |
-| Közepes | Negamax | 2 | Nincs |
-| Nehéz | Negamax + alpha-beta | 4 | ≤14 üres |
-| Mester | Negamax + alpha-beta | 6 | ≤18 üres |
+| Easy | 60% random + greedy | 1 | None |
+| Medium | Negamax | 2 | None |
+| Hard | Negamax + alpha-beta | 4 | ≤14 empty |
+| Expert | Negamax + alpha-beta | 6 | ≤18 empty |
 
-Az AI értékelő függvény: pozicionális súlymátrix (sarkok=120, X-négyzetek=−20) + mobilitás bónusz.
+The AI evaluation function: positional weight matrix (corners=120, X-squares=−20) + mobility bonus.
 
-### Biztonság
-- CSRF token minden POST kérésnél
-- Útvonal bejárás elleni védelem az ID-n
-- Bemeneti validáció (ID, lépés, név)
-- Rate limit: 30 kérés / 10 másodperc munkamenetenként
-- Fájlzárolás (flock) konkurens írások ellen
-- Nézők nem tudnak lépni vagy chatozni
+### Security
+- CSRF token on all POST requests
+- Path traversal protection on IDs
+- Input validation (ID, move, name)
+- Rate limiting: 30 requests / 10 seconds per session
+- File locking (flock) against concurrent writes
+- Spectators cannot make moves or chat
 
 ---
 
-## Rendszerkövetelmények
+## System Requirements
 
 ### PHP
-- **Verzió: PHP 8.0+** (ajánlott: 8.2 vagy 8.3)
-- Kötelező kiterjesztések:
-  - `mbstring` — UTF-8 szövegkezelés
-  - `openssl` — CSRF token generálás (`random_bytes`)
-  - `session` — játékos azonosítás (általában beépített)
-  - `json` — játékállapot tárolás (általában beépített)
-- Opcionális: `pcre` (beépített a legtöbb PHP-ban)
+- **Version: PHP 8.0+** (recommended: 8.2 or 8.3)
+- Required extensions:
+  - `mbstring` — UTF-8 text handling
+  - `openssl` — CSRF token generation (`random_bytes`)
+  - `session` — player identification (usually built-in)
+  - `json` — game state storage (usually built-in)
+- Optional: `pcre` (built-in in most PHP installations)
 
-### Szerver
-- Bármilyen PHP-t futtató webszerver:
-  - Apache (mod_php vagy PHP-FPM)
+### Server
+- Any web server capable of running PHP:
+  - Apache (mod_php or PHP-FPM)
   - Nginx + PHP-FPM
-  - PHP beépített szerver (fejlesztéshez)
-- **Nincs szükség**: adatbázisra, Node.js-re, Composer-re, npm-re
-- **Fájlrendszer**: írási jog a `games/` mappára
+  - PHP built-in server (for development)
+- **Not required**: Database, Node.js, Composer, npm
+- **File system**: Write permissions for the `games/` directory
 
-### Böngésző
-- Modern böngésző (Chrome 90+, Firefox 88+, Safari 14+, Edge 90+)
-- JavaScript engedélyezve
-- Nincs szükség pluginre vagy kiegészítőre
+### Browser
+- Modern browser (Chrome 90+, Firefox 88+, Safari 14+, Edge 90+)
+- JavaScript enabled
+- No plugins or extensions required
 
 ---
 
-## Telepítés
+## Installation
 
-### 1. Fájlok másolása
+### 1. Copying Files
 
 ```bash
 git clone https://nexnet.hu:5678/peter/reversi.git
 cd reversi
 ```
 
-Vagy töltsd le ZIP-ként és csomagold ki a webszerver gyökerébe.
+Alternatively, download as a ZIP and extract it to your web server's root directory.
 
-### 2. `games/` mappa létrehozása
+### 2. Creating the `games/` Directory
 
 ```bash
 mkdir games
-chmod 777 games    # Linux/Mac: írási jog szükséges
+chmod 777 games    # Linux/Mac: write permissions required
 ```
 
-Windows esetén a mappa létrehozása elég.
+On Windows, simply creating the folder is sufficient.
 
-### 3. PHP konfiguráció
+### 3. PHP Configuration
 
-Ellenőrizd, hogy az alábbi kiterjesztések engedélyezve vannak a `php.ini`-ben:
+Ensure the following extensions are enabled in your `php.ini`:
 
 ```ini
 extension=mbstring
 extension=openssl
 ```
 
-### 4a. PHP beépített szerver (fejlesztés/tesztelés)
+### 4a. PHP Built-in Server (Development/Testing)
 
-**Windows (start.bat segítségével):**
+**Windows (using start.bat):**
 ```
 start.bat
 ```
-A böngésző automatikusan megnyílik: `http://localhost:8000`
+The browser will open automatically: `http://localhost:8000`
 
-**Manuálisan:**
+**Manually:**
 ```bash
 php -S localhost:8000 -t .
 ```
 
-**Hordozható PHP (mellékelt, Windows):**
+**Portable PHP (included, Windows):**
 ```bash
 php\php.exe -c php\php.ini -S localhost:8000 -t .
 ```
 
-### 4b. Apache konfiguráció
+### 4b. Apache Configuration
 
 ```apache
 <VirtualHost *:80>
     DocumentRoot /var/www/reversi
-    ServerName reversi.pelda.hu
+    ServerName reversi.example.com
 
     <Directory /var/www/reversi>
         AllowOverride All
@@ -144,17 +144,17 @@ php\php.exe -c php\php.ini -S localhost:8000 -t .
 </VirtualHost>
 ```
 
-`.htaccess` szükséges a gyökérben (opcionális, URL átíráshoz):
+A `.htaccess` file in the root is required (optional, for URL rewriting):
 ```apache
 Options -Indexes
 ```
 
-### 4c. Nginx konfiguráció
+### 4c. Nginx Configuration
 
 ```nginx
 server {
     listen 80;
-    server_name reversi.pelda.hu;
+    server_name reversi.example.com;
     root /var/www/reversi;
     index index.php;
 
@@ -168,34 +168,34 @@ server {
 
 ---
 
-## Fájlstruktúra
+## File Structure
 
 ```
 reversi/
-├── index.php          # Lobby (szoba lista, létrehozás, csatlakozás)
-├── game.php           # Játékszoba HTML váza
-├── api.php            # Polling végpont (lépés, chat, törlés, csatlakozás)
-├── lib.php            # Shared segédfüggvények (validáció, CSRF, rate-limit, játéklogika)
-├── lib_ai.php         # AI logika (negamax + alpha-beta)
-├── reversi.js         # Kliens: polling, render, board diff, chat, timer
-├── reversi.css        # Játéknézet stílusok (sötét téma)
-├── lobby.css          # Lobby stílusok (sötét téma)
-├── start.bat          # Windows: egyclick szerver indítás
-├── start_server.ps1   # PowerShell: szerver indítás
-├── MIGRATIONS.md      # Játékállapot séma változásnapló
-├── games/             # Játék JSON fájlok (gitignore-olva)
-│   └── {id}.json      # Egy fájl játékonként
+├── index.php          # Lobby (room list, creation, joining)
+├── game.php           # Game room HTML skeleton
+├── api.php            # Polling endpoint (move, chat, delete, join)
+├── lib.php            # Shared helper functions (validation, CSRF, rate-limit, game logic)
+├── lib_ai.php         # AI logic (negamax + alpha-beta)
+├── reversi.js         # Client: polling, render, board diff, chat, timer
+├── reversi.css        # Game view styles (dark theme)
+├── lobby.css          # Lobby styles (dark theme)
+├── start.bat          # Windows: one-click server start
+├── start_server.ps1   # PowerShell: server start
+├── MIGRATIONS.md      # Game state schema changelog
+├── games/             # Game JSON files (gitignored)
+│   └── {id}.json      # One file per game
 ├── js/
 │   ├── bootstrap.min.css   # Bootstrap 5 (vendored)
 │   └── bootstrap.min.js
-└── php/               # Hordozható PHP (Windows, gitignore-olva)
+└── php/               # Portable PHP (Windows, gitignored)
 ```
 
 ---
 
-## Játékállapot séma
+## Game State Schema
 
-Minden aktív játék egy JSON fájlban tárolódik (`games/{id}.json`):
+Every active game is stored in a JSON file (`games/{id}.json`):
 
 ```json
 {
@@ -204,82 +204,83 @@ Minden aktív játék egy JSON fájlban tárolódik (`games/{id}.json`):
   "turn": 0,
   "board": [[0,0,...], ...],
   "finished": false,
-  "chat": [{"who": "Peter", "text": "Szia!", "ts": 1700000000}],
-  "spectators": ["Nező1"],
+  "chat": [{"who": "Peter", "text": "Hi!", "ts": 1700000000}],
+  "spectators": ["Spectator1"],
   "timer": 60,
   "turnStartedAt": 1700000000,
   "ai": false,
   "ai_difficulty": "hard",
   "piece_colors": ["#111111", "#eeeeee"],
   "allow_spectators": true,
-  "room_name": "Barátok szobája"
+  "room_name": "Friends Room"
 }
 ```
 
-- `turn`: -1 (várakozás), 0 (fekete lép), 1 (fehér lép)
-- `board`: 8×8 mátrix, 0=üres, 1=fekete, 2=fehér
-- `timer`: 0=nincs időkorlát, egyébként másodperc
+- `turn`: -1 (waiting), 0 (black moves), 1 (white moves)
+- `board`: 8×8 matrix, 0=empty, 1=black, 2=white
+- `timer`: 0=no time limit, otherwise seconds
 - `ai_difficulty`: `"easy"` | `"medium"` | `"hard"` | `"expert"`
 
 ---
 
-## Automatikus takarítás
+## Automatic Cleanup
 
-A `games/` mappa önmagát kezeli — nincs szükség cron jobra:
+The `games/` directory manages itself — no cron job required:
 
-| Állapot | Törlés ideje |
+| State | Deletion Time |
 |---------|-------------|
-| Befejezett játék | 5 perc után |
-| Várakozó (1 játékos) | 30 perc után |
-| Elhagyott (2 játékos, inaktív) | 2 óra után |
+| Finished game | After 5 minutes |
+| Waiting (1 player) | After 30 minutes |
+| Abandoned (2 players, inactive) | After 2 hours |
 
-A takarítás minden lobby oldalbetöltéskor fut.
+Cleanup runs on every lobby page load.
 
 ---
 
-## Játékszabályok
+## Game Rules
 
 Standard Othello/Reversi:
-- A fekete (1. játékos) kezd.
-- Lépés érvényes, ha legalább egy ellenfél korongot befog.
-- Ha egy játékosnak nincs érvényes lépése, automatikusan passzol.
-- Ha mindkét játékosnak nincs érvényes lépése, a játék véget ér.
-- A nyertes akinek több korongja van a táblán.
+- Black (Player 1) moves first.
+- A move is valid if it flanks at least one opponent's piece.
+- If a player has no valid moves, they automatically pass.
+- If neither player has valid moves, the game ends.
+- The winner is the player with the most pieces on the board.
 
 ---
 
-## Fejlesztési megjegyzések
+## Development Notes
 
-- Nincs framework, nincs build lépés — tiszta PHP + vanilla JS
-- A `flock()` zárolja a JSON fájlokat konkurens írások ellen
-- Az AI lépés lustán értékelődik: minden lekérdezéskor fut ha az AI köre van (2mp minimális gondolkodási idő)
-- A kliens 1 másodpercenként kérdezi le az állapotot; a játék végén leáll
-- Minden UI szöveg magyar
-- A CSRF token munkamenetenként generálódik és minden POST kérésnél validálva van
-
----
-
-## Ismert korlátok (Alpha)
-
-- Névütközés: két különböző felhasználó használhatja ugyanazt a nevet
-- JSON fájl tárolás: magas terhelésnél (~50+ egyidejű játék) lassulhat
-- WebSocket/SSE nincs: 1mp-es polling latencia
-- Nincs ELO / statisztika rendszer
-- Nincs fiók rendszer / bejelentkezés
+- No framework, no build steps — pure PHP + vanilla JS
+- `flock()` locks JSON files against concurrent writes
+- AI moves are lazily evaluated: executed on every poll if it's the AI's turn (with a minimum 2-second thinking time)
+- The client polls the state every 1 second; stops when the game ends
+- All UI text is in Hungarian
+- CSRF tokens are generated per session and validated on all POST requests
 
 ---
 
-## Tervezett fejlesztések
+## Known Limitations (Alpha)
 
-- SQLite/MySQL migráció
-- WebSocket valós idejű kommunikáció
-- Felhasználói fiókok és ELO rangsor
-- Visszajátszás / lépésnapló
-- Mobilbarát megjelenítés
-- Hangeffektek
+- Name collision: two different users can use the same name
+- JSON file storage: may slow down under heavy load (~50+ concurrent games)
+- No WebSocket/SSE: 1-second polling latency
+- No ELO / statistics system
+- No account system / login
 
 ---
 
-## Licenc
+## Planned Features
 
-Személyes / oktatási célú projekt. Kereskedelmi felhasználás előtt egyeztesd a szerzővel.
+- SQLite/MySQL migration
+- WebSocket real-time communication
+- User accounts and ELO ranking
+- Replay / move log
+- Mobile-friendly UI
+- Sound effects
+
+---
+
+## License
+
+Personal / educational project. Contact the author before commercial use.
+```
