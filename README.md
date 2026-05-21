@@ -4,6 +4,8 @@ Browser-based multiplayer Reversi/Othello game. PHP backend, vanilla JS frontend
 
 ---
 
+## WARNING! THE SCRIPT IS IN HUNGARIAN!
+
 ## Screenshots
 
 The game features a dark-themed, 8×8 Reversi board with custom piece colors, real-time status updates, and integrated chat.
